@@ -2,6 +2,7 @@ const e = require('express')
 const data = require('../config/connect')
 const redis = require('redis')
 const { json } = require('body-parser')
+const jwt = require('jsonwebtoken')
 
 exports.getAccount = (req, res, next) => {
     res.render('login')
@@ -25,12 +26,18 @@ exports.getLogin = (req, res, next) => {
     var password = req.body.password
     data.query('SELECT * FROM account WHERE account = ? AND password = ?', [username, password], (err, rows, fields) => {
         if (rows.length > 0) {
+
+            const token = jwt.sign({ username: rows.username}, 'mk')
+
+            //redis
             const client = redis.createClient(6379)
             const redisKey = 'account:password'
-            // res.send('LOGIN SUCCESS')
             client.setex(redisKey, 3600, JSON.stringify(rows))
+            //===================================
 
-            res.status(200).json({ data : "success" })
+            res.status(200).json({ data : "success",
+                                   token : token
+                })
         } else {
             // res.send('LOGIN FAIL')
             res.status(200).json({ data : "false" })
@@ -82,14 +89,20 @@ exports.getAll = (req, res, next) => {
 exports.postData = (req, res, next) => {
     const dataInsert = [req.body.name, req.body.title, req.body.content, req.body.selectOptions_id]
     console.log(dataInsert)
-    data.query('INSERT INTO notify (name, title, content, usersend) VALUES (?, ?, ?, ?)', dataInsert, (err, rows, fields) => {
-        if (err){
-            res.status(200).json({ err })
-        }
-        else {
-            res.status(201).json({ success: true })
-            // res.status(201).json({ rows })
-            req.app.io.emit('data', { message: 'success' } )
+    jwt.verify(req.token, 'mk', (err, authData) => {
+        if (err) {
+            res.status(403)
+        } else {
+            data.query('INSERT INTO notify (name, title, content, usersend) VALUES (?, ?, ?, ?)', dataInsert, (err, rows, fields) => {
+                if (err){
+                    res.status(200).json({ err })
+                }
+                else {
+                    res.status(201).json({ success: true })
+                    // res.status(201).json({ rows })
+                    req.app.io.emit('data', { message: 'success' } )
+                }
+            })
         }
     })
 }

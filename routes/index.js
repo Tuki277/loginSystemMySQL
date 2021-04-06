@@ -1,6 +1,7 @@
 var express = require('express');
 var router = express.Router();
 var accountController = require('../controllers/index')
+const verifyToken = require('./../middleware/authUser')
 
 /* GET home page. */
 router.get('/', accountController.getAccount)
@@ -13,7 +14,7 @@ router.get('/getprofile/:id', accountController.getProfileById)
 router.get('/getall', accountController.getAll)
 
 router.route('/addnoti')
-    .post(accountController.postData)
+    .post(verifyToken, accountController.postData)
     .get(accountController.getData)
 
 router.route('/userstatus')
