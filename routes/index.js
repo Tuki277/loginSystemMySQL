@@ -12,4 +12,14 @@ router.post('/getlogin', accountController.getLogin)
 router.get('/getprofile/:id', accountController.getProfileById)
 router.get('/getall', accountController.getAll)
 
+router.route('/addnoti')
+    .post(accountController.postData)
+    .get(accountController.getData)
+
+router.route('/userstatus')
+    .post(accountController.addUserStatus)
+    .get(accountController.getUserStatus)
+
+router.get('/getuserbyid/:id', accountController.getUserStatusById)
+
 module.exports = router;
