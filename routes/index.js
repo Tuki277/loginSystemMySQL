@@ -22,5 +22,6 @@ router.route('/userstatus')
     .get(accountController.getUserStatus)
 
 router.get('/getuserbyid/:id', accountController.getUserStatusById)
+router.get('/getnotibyuser/:id', verifyToken, accountController.getNotiByUser)
 
 module.exports = router;

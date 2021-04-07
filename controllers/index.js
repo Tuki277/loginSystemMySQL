@@ -27,17 +27,29 @@ exports.getLogin = (req, res, next) => {
     data.query('SELECT * FROM account WHERE account = ? AND password = ?', [username, password], (err, rows, fields) => {
         if (rows.length > 0) {
 
-            const token = jwt.sign({ username: rows.username}, 'mk')
-
-            //redis
+            const token = jwt.sign({ username: rows.id}, 'mk')
             const client = redis.createClient(6379)
-            const redisKey = 'account:password'
-            client.setex(redisKey, 3600, JSON.stringify(rows))
-            //===================================
+            const redisKey = 'accountToken'
 
-            res.status(200).json({ data : "success",
-                                   token : token
-                })
+            return client.HGET(redisKey, (err, data) => {
+                console.log('data ========= ', data)
+                if (data) {
+                    console.log(data)
+                    res.status(500).json({ err })
+                } else {
+                    //redis
+                    client.HSET(redisKey, 3600, JSON.stringify({
+                        rows,
+                        token
+                    }))
+                    //===================================
+
+                    res.status(200).json({ data : "success",
+                                        token : token
+                        })
+                }
+            })
+
         } else {
             // res.send('LOGIN FAIL')
             res.status(200).json({ data : "false" })
@@ -87,13 +99,13 @@ exports.getAll = (req, res, next) => {
 }
 
 exports.postData = (req, res, next) => {
-    const dataInsert = [req.body.name, req.body.title, req.body.content, req.body.selectOptions_id]
+    const dataInsert = [req.body.name, req.body.title, req.body.content, req.body.id_user]
     console.log(dataInsert)
-    jwt.verify(req.token, 'mk', (err, authData) => {
+    jwt.verify(req.token, 'mk', (err, authData) => { // protected router
         if (err) {
             res.status(403)
         } else {
-            data.query('INSERT INTO notify (name, title, content, usersend) VALUES (?, ?, ?, ?)', dataInsert, (err, rows, fields) => {
+            data.query('INSERT INTO notify (name, title, content, id_user) VALUES (?, ?, ?, ?)', dataInsert, (err, rows, fields) => {
                 if (err){
                     res.status(200).json({ err })
                 }
@@ -143,6 +155,17 @@ exports.getUserStatusById = (req, res, next) => {
     data.query('SELECT * FROM userstatus WHERE id = ?', id, (err, rows, fields) => {
         if ( err ) {
             res.status(200).json({ err })
+        } else {
+            res.status(200).json({ data : rows })
+        }
+    })
+}
+
+exports.getNotiByUser = (req, res, next) => {
+    const id = req.params.id
+    data.query('SELECT * FROM notify, account WHERE notify.id_user = account.id', id, (err, rows, fields) => {
+        if ( err ) {
+            res.status(500).json({ err })
         } else {
             res.status(200).json({ data : rows })
         }
