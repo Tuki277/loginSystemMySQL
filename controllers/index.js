@@ -45,7 +45,8 @@ exports.getLogin = (req, res, next) => {
                     //===================================
 
                     res.status(200).json({ data : "success",
-                                        token : token
+                                        token : token,
+                                        rows
                         })
                 }
             })
@@ -163,11 +164,17 @@ exports.getUserStatusById = (req, res, next) => {
 
 exports.getNotiByUser = (req, res, next) => {
     const id = req.params.id
-    data.query('SELECT * FROM notify, account WHERE notify.id_user = account.id', id, (err, rows, fields) => {
-        if ( err ) {
-            res.status(500).json({ err })
+    jwt.verify(req.token, 'mk', (err, authData) => { // protected router
+        if (err) {
+            res.status(403).json({ err })
         } else {
-            res.status(200).json({ data : rows })
+            data.query('SELECT * FROM notify, account WHERE notify.id_user = ? AND notify.id_user = account.id', id, (err, rows, fields) => {
+                if ( err ) {
+                    res.status(500).json({ err })
+                } else {
+                    res.status(200).json({ data : rows })
+                }
+            })
         }
     })
 }
