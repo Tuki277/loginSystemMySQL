@@ -21,19 +21,17 @@ exports.loginAuthentication = (req, res, next) => {
 }
 
 exports.getLogin = (req, res, next) => {
-    console.log(req.body)
     const username = req.body.username
     const password = req.body.password
     data.query('SELECT * FROM account WHERE account = ? AND password = ?', [username, password], (err, rows, fields) => {
         if (rows.length > 0) {
-
-            const token = jwt.sign({ username: rows.id}, 'mk')
+            console.log(rows[0].id)
+            const token = jwt.sign({ username: username}, 'mk')
             const client = redis.createClient(6379)
-            const redisKey = 'accountToken'
 
             return client.GET(username, (err, data) => {
                 if (data) {
-                    console.log(JSON.parse(data).token)
+                    console.log(JSON.parse(data).data)
                     res.status(200).json({
                         message : "success (get from redis)",
                         token :JSON.parse(data).token,
@@ -41,12 +39,11 @@ exports.getLogin = (req, res, next) => {
                     })
                 } else {
                     //redis
-                    client.set(username, JSON.stringify({
+                    client.SET(username, JSON.stringify({
                         data : rows,
                         token
                     }))
                     //===================================
-
                     res.status(200).json({ message : "success",
                                         token : token,
                                         rows
@@ -104,7 +101,7 @@ exports.getAll = (req, res, next) => {
 
 exports.postData = (req, res, next) => {
     const dataInsert = [req.body.name, req.body.title, req.body.content, req.body.id_user]
-    console.log(dataInsert)
+    console.log('req.token ========= ', req.token)
     jwt.verify(req.token, 'mk', (err, authData) => { // protected router
         if (err) {
             res.status(403)
