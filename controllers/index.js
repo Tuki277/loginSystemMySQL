@@ -193,12 +193,14 @@ exports.updateAccount = (req, res, next) => {
                 if ( err ) {
                     res.status(500).json({ err })
                 } else {
-                    req.app.io.emit('update', { message: 'updated' } )
+                    req.app.io.emit('update', { 
+                        message: 'updated',
+                        id: id
+                })
                     // res.status(200).json({ data: rows })
                     return client.DEL(req.body.account, (err, data) => {
                         res.status(200).json({ 
-                            message : 'done',
-                            data: id
+                            message : 'done'
                         })
                     })
                 }
