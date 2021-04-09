@@ -22,8 +22,8 @@ exports.loginAuthentication = (req, res, next) => {
 
 exports.getLogin = (req, res, next) => {
     console.log(req.body)
-    var username = req.body.username
-    var password = req.body.password
+    const username = req.body.username
+    const password = req.body.password
     data.query('SELECT * FROM account WHERE account = ? AND password = ?', [username, password], (err, rows, fields) => {
         if (rows.length > 0) {
 
@@ -31,23 +31,26 @@ exports.getLogin = (req, res, next) => {
             const client = redis.createClient(6379)
             const redisKey = 'accountToken'
 
-            return client.HGET(redisKey, (err, data) => {
-                console.log('data ========= ', data)
+            return client.GET(username, (err, data) => {
                 if (data) {
-                    console.log(data)
-                    res.status(500).json({ err })
+                    console.log(JSON.parse(data).token)
+                    res.status(200).json({
+                        message : "success (get from redis)",
+                        token :JSON.parse(data).token,
+                        rows: JSON.parse(data).data
+                    })
                 } else {
                     //redis
-                    client.HSET(redisKey, 3600, JSON.stringify({
-                        rows,
+                    client.set(username, JSON.stringify({
+                        data : rows,
                         token
                     }))
                     //===================================
 
-                    res.status(200).json({ data : "success",
+                    res.status(200).json({ message : "success",
                                         token : token,
                                         rows
-                        })
+                    })
                 }
             })
 
