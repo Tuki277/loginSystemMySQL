@@ -60,9 +60,9 @@ exports.getLogin = (req, res, next) => {
 
 exports.register = (req, res, next) => {
     // var io = req.app.get('socketio')
-    const dataInsert = [req.body.account, req.body.password]
+    const dataInsert = [req.body.account, req.body.password, req.body.role]
 
-        data.query('INSERT INTO account (account, password) VALUES (?, ?)', dataInsert, (err, rows, fields) => {
+        data.query('INSERT INTO account (account, password, role) VALUES (?, ?, ?)', dataInsert, (err, rows, fields) => {
             if (err){
                 console.log(err)
             }
@@ -173,6 +173,34 @@ exports.getNotiByUser = (req, res, next) => {
                     res.status(500).json({ err })
                 } else {
                     res.status(200).json({ data : rows })
+                }
+            })
+        }
+    })
+}
+
+exports.updateAccount = (req, res, next) => {
+    var id = req.params.id
+    var account = req.body.account
+    var password = req.body.password
+    var role = req.body.role
+    const client = redis.createClient(6379)
+    jwt.verify(req.token, 'mk', (err, authData) => {
+        if (err) {
+            res.status(403).json({ err })
+        } else {
+            data.query('UPDATE account SET account = ?, password = ?, role = ? WHERE id = ?', [account, password, role, id], (err, rows, fields) => {
+                if ( err ) {
+                    res.status(500).json({ err })
+                } else {
+                    req.app.io.emit('update', { message: 'updated' } )
+                    // res.status(200).json({ data: rows })
+                    return client.DEL(req.body.account, (err, data) => {
+                        res.status(200).json({ 
+                            message : 'done',
+                            data: id
+                        })
+                    })
                 }
             })
         }
