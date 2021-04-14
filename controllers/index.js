@@ -104,11 +104,11 @@ exports.postData = (req, res, next) => {
     console.log('req.token ========= ', req.token)
     jwt.verify(req.token, 'mk', (err, authData) => { // protected router
         if (err) {
-            res.status(403)
+            res.status(403).json({ message : "NOT PERMISSION 1" })
         } else {
             data.query('INSERT INTO notify (name, title, content, id_user) VALUES (?, ?, ?, ?)', dataInsert, (err, rows, fields) => {
                 if (err){
-                    res.status(200).json({ err })
+                    res.status(401).json({ err })
                 }
                 else {
                     res.status(201).json({ success: true })
@@ -198,9 +198,11 @@ exports.updateAccount = (req, res, next) => {
                         id: id
                 })
                     // res.status(200).json({ data: rows })
-                    return client.DEL(req.body.account, (err, data) => {
-                        res.status(200).json({ 
-                            message : 'done'
+                    return client.GET(req.body.account, (err, data) => {
+                        res.status(200).json({
+                            message : 'done',
+                            token :JSON.parse(data).token,
+                            rows: JSON.parse(data).data
                         })
                     })
                 }
