@@ -113,7 +113,7 @@ exports.postData = (req, res, next) => {
                 else {
                     res.status(201).json({ success: true })
                     // res.status(201).json({ rows })
-                    req.app.io.emit('data', { message: 'success' } )
+                    req.app.io.emit('data', { message: 'success' })
                 }
             })
         }
