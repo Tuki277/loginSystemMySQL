@@ -3,6 +3,7 @@ const data = require('../config/connect')
 const redis = require('redis')
 const { json } = require('body-parser')
 const jwt = require('jsonwebtoken')
+const bcrypt = require('bcrypt')
 
 exports.getAccount = (req, res, next) => {
     res.render('login')
@@ -23,55 +24,80 @@ exports.loginAuthentication = (req, res, next) => {
 exports.getLogin = (req, res, next) => {
     const username = req.body.username
     const password = req.body.password
-    data.query('SELECT * FROM account WHERE account = ? AND password = ?', [username, password], (err, rows, fields) => {
-        if (rows.length > 0) {
-            console.log(rows[0].id)
-            const token = jwt.sign({ username: username}, 'mk')
-            const client = redis.createClient(6379)
-
-            return client.GET(username, (err, data) => {
-                if (data) {
-                    console.log(JSON.parse(data).data)
-                    res.status(200).json({
-                        message : "success (get from redis)",
-                        token :JSON.parse(data).token,
-                        rows: JSON.parse(data).data
-                    })
-                } else {
-                    //redis
-                    client.SET(username, JSON.stringify({
-                        data : rows,
-                        token
-                    }))
-                    //===================================
-                    res.status(200).json({ message : "success",
-                                        token : token,
-                                        rows
-                    })
+    try {
+        data.query('SELECT * FROM account WHERE account = ?', username, async (err, rows, fields) => {
+            if (rows.length > 0) {
+                console.log(rows[0].id)
+                const token = jwt.sign({ username: username }, 'mk')
+                for (let i = 0; i < rows.length; i++) {
+                    console.log(rows[i].PASSWORD)
+                    if (await bcrypt.compare(password, rows[i].PASSWORD)) {
+                        res.status(200).json({ message: "Login success",
+                                               token: token })
+                    } else {
+                        res.status(200).json({ message: "Password wrong" })
+                    }
                 }
-            })
-
-        } else {
-            // res.send('LOGIN FAIL')
-            res.status(200).json({ data : "false" })
+            } else {
+                res.status(200).json({ message: "Login fail" })
+            }
         }
-    })
+        )
+    } catch (error) {
+        console.log(error)
+    }
+    // const client = redis.createClient(6379)
+
+    // return client.GET(username, (err, data) => {
+    //     if (data) {
+    //         console.log(JSON.parse(data).data)
+    //         res.status(200).json({
+    //             message : "success (get from redis)",
+    //             token :JSON.parse(data).token,
+    //             rows: JSON.parse(data).data
+    //         })
+    //     } else {
+    //         //redis
+    //         client.SET(username, JSON.stringify({
+    //             data : rows,
+    //             token
+    //         }))
+    //===================================
+    // try {
+    //     if (check) {
+    //         res.status(200).json({ message : "success",
+    //             token : token,
+    //             rows
+    //         })
+    //     } else {
+    //         res.status(200).json({ message : "Password wrong" })
+    //     }
+    // } catch (error) {
+    //     console.log(error)
+    // }
+    // } else {
+    //     res.status(200).json({ message: "Login fail" })
+    // }
 }
 
-exports.register = (req, res, next) => {
-    // var io = req.app.get('socketio')
-    const dataInsert = [req.body.account, req.body.password, req.body.role]
-
-        data.query('INSERT INTO account (account, password, role) VALUES (?, ?, ?)', dataInsert, (err, rows, fields) => {
-            if (err){
+exports.register = async (req, res, next) => {
+    try {
+        const salt = await bcrypt.genSalt(10)
+        const hashedPassword = await bcrypt.hash(req.body.password, salt)
+        data.query('INSERT INTO account (account, password, role) VALUES (?, ?, ?)', [req.body.username, hashedPassword, req.body.role], (err, rows, fields) => {
+            if (err) {
                 console.log(err)
             }
             else {
                 // res.status(201).json({ success: true })
-                res.status(201).json({ data: dataInsert })
-                req.app.io.emit('data', { message: 'success'} )
+                res.status(201).json({ message: "success" })
+                req.app.io.emit('data', { message: 'success' })
             }
         })
+    } catch (error) {
+        console.log(error)
+    }
+    // var io = req.app.get('socketio')
 }
 
 exports.getRegister = (req, res, next) => {
@@ -84,7 +110,7 @@ exports.getProfileById = (req, res, next) => {
         if (err) {
             res.status(500).json({ err })
         } else {
-            res.status(200).json({ data : rows })
+            res.status(200).json({ data: rows })
         }
     })
 }
@@ -94,7 +120,7 @@ exports.getAll = (req, res, next) => {
         if (err) {
             res.status(200).json({ err })
         } else {
-            res.status(200).json({ data : rows })
+            res.status(200).json({ data: rows })
         }
     })
 }
@@ -104,10 +130,10 @@ exports.postData = (req, res, next) => {
     console.log('req.token ========= ', req.token)
     jwt.verify(req.token, 'mk', (err, authData) => { // protected router
         if (err) {
-            res.status(403).json({ message : "NOT PERMISSION 1" })
+            res.status(403).json({ message: "NOT PERMISSION 1" })
         } else {
             data.query('INSERT INTO notify (name, title, content, id_user) VALUES (?, ?, ?, ?)', dataInsert, (err, rows, fields) => {
-                if (err){
+                if (err) {
                     res.status(401).json({ err })
                 }
                 else {
@@ -125,7 +151,7 @@ exports.getData = (req, res, next) => {
         if (err) {
             res.status(200).json({ err })
         } else {
-            res.status(200).json({ data : rows })
+            res.status(200).json({ data: rows })
         }
     })
 }
@@ -146,7 +172,7 @@ exports.addUserStatus = (req, res, next) => {
         if (err) {
             res.status(200).json({ err })
         } else {
-            res.status(201).json({ success : true })
+            res.status(201).json({ success: true })
         }
     })
 }
@@ -154,10 +180,10 @@ exports.addUserStatus = (req, res, next) => {
 exports.getUserStatusById = (req, res, next) => {
     const id = req.params.id
     data.query('SELECT * FROM userstatus WHERE id = ?', id, (err, rows, fields) => {
-        if ( err ) {
+        if (err) {
             res.status(200).json({ err })
         } else {
-            res.status(200).json({ data : rows })
+            res.status(200).json({ data: rows })
         }
     })
 }
@@ -169,10 +195,10 @@ exports.getNotiByUser = (req, res, next) => {
             res.status(403).json({ err })
         } else {
             data.query('SELECT * FROM notify, account WHERE notify.id_user = ? AND notify.id_user = account.id', id, (err, rows, fields) => {
-                if ( err ) {
+                if (err) {
                     res.status(500).json({ err })
                 } else {
-                    res.status(200).json({ data : rows })
+                    res.status(200).json({ data: rows })
                 }
             })
         }
@@ -190,18 +216,18 @@ exports.updateAccount = (req, res, next) => {
             res.status(403).json({ err })
         } else {
             data.query('UPDATE account SET account = ?, password = ?, role = ? WHERE id = ?', [account, password, role, id], (err, rows, fields) => {
-                if ( err ) {
+                if (err) {
                     res.status(500).json({ err })
                 } else {
-                    req.app.io.emit('update', { 
+                    req.app.io.emit('update', {
                         message: 'updated',
                         id: id
-                })
+                    })
                     // res.status(200).json({ data: rows })
                     return client.GET(req.body.account, (err, data) => {
                         res.status(200).json({
-                            message : 'done',
-                            token :JSON.parse(data).token,
+                            message: 'done',
+                            token: JSON.parse(data).token,
                             rows: JSON.parse(data).data
                         })
                     })
